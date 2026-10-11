@@ -23,6 +23,10 @@ export const RELEASE_FILES = [
   'test/unit/fmt.test.js','test/unit/ingest.test.js','test/unit/notify.test.js',
   'test/unit/report.test.js','test/unit/rollup.test.js','test/unit/swiftbar.test.js',
   'test/unit/portability.test.js','test/unit/release.test.js',
+  'scripts/setup.js','src/onboarding.js','src/agent/workspace.js','src/cleanup/discover.js',
+  'test/unit/onboarding.test.js','test/unit/agent-workflow.test.js','test/unit/discover.test.js',
+  'agent/CONTEXT.md','agent/01_observe/CONTEXT.md','agent/02_investigate/CONTEXT.md',
+  'agent/03_decide/CONTEXT.md','agent/plan-template.md','docs/AGENT-WORKFLOW.md',
 ];
 
 export function exportSource({source=root,destination} = {}) {

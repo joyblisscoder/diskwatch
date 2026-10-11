@@ -9,6 +9,7 @@ loopback dashboard, and optional SwiftBar menu status.
 | Change implementation | CONTRIBUTING.md, src/, test/ |
 | Privacy or vulnerability | SECURITY.md |
 | Create a source release | scripts/package-release.js |
+| Onboard an owner or help clean up | docs/AGENT-WORKFLOW.md, then `diskwatch agent` |
 
 Run `bash test/run-all.sh` on macOS. Use an isolated `DISKWATCH_STATE_DIR`
 when testing. Never ship a real database, configuration, logs, or private paths.
@@ -19,6 +20,10 @@ Only `diskwatch.60s.sh` belongs in `swiftbar/`, which SwiftBar executes automati
 
 Runtime state lives in `~/.local/state/diskwatch/`. New installations don't
 require personal helpers. Older configurations preserve their integrations.
+
+For owner support, explain scope and let them answer terminal setup. All modes
+require approval of exact cleanup items. Daily discovery does not launch an AI.
+The reusable `agent/` contracts are separate from private runtime evidence.
 
 ## Claiming work across machines
 

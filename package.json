@@ -1,6 +1,6 @@
 {
   "name": "diskwatch",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Local macOS disk monitoring with SQLite history, a dashboard, and optional SwiftBar status.",
   "license": "MIT",
   "type": "module",

@@ -197,7 +197,9 @@ test('representative 30-repository workspace accounts for 120000 dependency meta
   }
   f.age();
   const started = performance.now();
-  const result = await discoverCandidates(f.options);
+  // This checks full accounting, not shared-runner I/O speed. Strict time and
+  // entry exhaustion have separate tests; preserve all completeness assertions.
+  const result = await discoverCandidates({...f.options,maxMs:30000,maxTotalMs:30000});
   const elapsed = Math.round(performance.now() - started);
   t.diagnostic(`120000 empty dependency files, 30 repositories: ${result.coverage.entries_scanned} entries in ${elapsed}ms, ${result.candidates.length} findings`);
   assert.equal(result.candidates.length, 30);

@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DiskWatch</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <h1>DiskWatch</h1>
+      <div class="sub">Mac health · Disk lane</div>
+    </div>
+    <div id="health-chip" class="chip ok">health ok</div>
+  </header>
+
+  <div id="doctor-banner" class="banner" role="status"></div>
+
+  <section id="triage" class="triage" aria-label="Triage">
+    <h2>Triage</h2>
+    <div class="triage-grid">
+      <div>
+        <p id="triage-restart">A restart reclaims about -- GB</p>
+        <h3>Top movers</h3>
+        <ul id="triage-movers"></ul>
+      </div>
+      <div>
+        <h3>Open events</h3>
+        <ul id="triage-events" class="events"></ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="header-card" aria-label="Volume">
+    <div id="free-ring" class="ring">
+      <div class="ring-inner">
+        <div id="free-gb" class="free">--</div>
+        <div class="unit">GB free</div>
+      </div>
+    </div>
+    <div class="metrics">
+      <div id="volume-line" class="line">Free -- GB of -- GB</div>
+      <div id="swap-line" class="line">Swap --</div>
+      <div id="restart-line" class="line">A restart reclaims about -- GB</div>
+      <div id="scan-line" class="muted">Last scan --</div>
+      <div class="muted">Sizes from <code>du</code> are logical.</div>
+    </div>
+  </section>
+
+  <section id="chart-panel" class="panel" aria-label="Trend">
+    <h2>Top paths · 14 days</h2>
+    <p class="hint">Stacked area · logical sizes</p>
+    <div id="chart-wrap">
+      <svg id="chart" width="960" height="280"></svg>
+    </div>
+    <div id="chart-legend" class="legend"></div>
+  </section>
+
+  <section class="panel" aria-label="Movers">
+    <h2>Top movers</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Path</th>
+          <th>Class</th>
+          <th>Size</th>
+          <th>1d</th>
+          <th>7d</th>
+        </tr>
+      </thead>
+      <tbody id="movers-body"></tbody>
+    </table>
+  </section>
+
+  <section class="panel" aria-label="Events">
+    <h2>Open events</h2>
+    <ul id="events-list" class="events"></ul>
+  </section>
+
+  <p class="footer">DiskWatch Phase 1 · watches and reports only</p>
+
+  <script type="module" src="/app.js"></script>
+</body>
+</html>

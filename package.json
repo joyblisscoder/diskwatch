@@ -1,0 +1,15 @@
+{
+  "name": "diskwatch",
+  "version": "0.1.0",
+  "description": "Local macOS disk monitoring with SQLite history, a dashboard, and optional SwiftBar status.",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.13"
+  },
+  "scripts": {
+    "test": "bash test/run-all.sh",
+    "share": "node scripts/package-release.js"
+  },
+  "private": true
+}

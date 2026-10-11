@@ -4,7 +4,8 @@
 
 import os from 'node:os';
 import path from 'node:path';
-import { getConfig } from '../config.js';
+import { getConfig, statePath } from '../config.js';
+import { cleanupSummary } from '../cleanup/summary.js';
 import { fileURLToPath } from 'node:url';
 import { freeColor, collapseHome } from '../util/fmt.js';
 import { nowSec, dayKey, agoSec } from '../util/time.js';
@@ -221,6 +222,7 @@ export function buildReport(db, opts = {}) {
       top_movers: movers,
       open_events: events,
       last_external_actions: actions,
+      cleanup_summary: cleanupSummary({state:statePath(),config:getConfig()}),
     },
   };
 }
@@ -261,6 +263,12 @@ export function buildSwiftbar(db) {
         ? '?'
         : Math.max(0, Math.floor(agoSec(report.as_of) / 60));
     lines.push(`Last scan ${mins} min ago`);
+    if(d.cleanup_summary) {
+      const summary=d.cleanup_summary;
+      if(summary.status === 'ready') lines.push(`${summary.candidate_count} cleanup lead(s), ${summary.suppressed_count} kept/snoozed${summary.partial ? ' (partial coverage)' : ''}`);
+      else lines.push(`Cleanup discovery: ${summary.status.replaceAll('_',' ')}`);
+      lines.push(`Prepare cleanup review | bash="${CLI_BIN}" param1=agent terminal=true refresh=true`);
+    }
     lines.push('---');
     lines.push('Top movers today');
 

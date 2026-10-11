@@ -25,7 +25,9 @@ import { collapseHome } from './util/fmt.js';
 import { nowSec } from './util/time.js';
 import { append } from './util/log.js';
 import { runOnboarding } from './onboarding.js';
-import { candidatesFor, refreshAgent } from './agent/workspace.js';
+import { candidatesFor, refreshAgent, inventoryFor } from './agent/workspace.js';
+import {rememberDecision,decisionList,listOutcomes} from './cleanup/memory.js';
+import {candidateId,selectCandidate,createCleanupPlan,verifyCleanupPlan} from './cleanup/workflow.js';
 
 const [, , cmd, ...args] = process.argv;
 
@@ -381,14 +383,48 @@ async function agentSnapshot(scheduled = false) {
 }
 
 const COMMANDS = {
+  decisions: async () => {
+    if(args.some(a=>a !== '--json')) throw new Error('usage: diskwatch decisions [--json]');
+    const rows=decisionList({state:statePath()}).map(item=>({...item,id:candidateId(item)}));
+    if(hasFlag('--json')) printJson(rows);
+    else for(const row of rows) console.log(`${row.id.slice(0,12)} ${row.decision} (${row.status}) ${JSON.stringify(row.path)}`);
+  },
+  decide: async () => {
+    const [reference,decision,...extra]=args;
+    if(!reference || !['keep','snooze','clear'].includes(decision) || extra.some((a,i)=>a !== '--json' && a !== '--days' && extra[i-1] !== '--days')) throw new Error('usage: diskwatch decide <candidate-id> keep|snooze|clear [--days 30] [--json]');
+    const state=statePath();
+    let candidate;
+    if(decision === 'clear') candidate=selectCandidate({candidates:decisionList({state})},reference);
+    else candidate=selectCandidate(await candidatesFor({config:loadConfig(),state}),reference);
+    const result=rememberDecision({state,candidate,decision,days:Number(flagValue('--days','30'))});
+    if(hasFlag('--json')) printJson(result);
+    else console.log(`${decision}: ${JSON.stringify(candidate.path)}. This preference does not approve cleanup.`);
+  },
+  cleanup: async () => {
+    const [action,id,...extra]=args;
+    if(!['plan','check','verify','history'].includes(action) || extra.some(a=>a !== '--json') || (action !== 'history' && !id) || (action === 'history' && id && id !== '--json')) throw new Error('usage: diskwatch cleanup plan <candidate-id> | check <plan-id> | verify <plan-id> | history [--json]');
+    const state=statePath();
+    let result;
+    if(action === 'history') result=listOutcomes({state});
+    else {
+      const config=loadConfig();
+      const discovered=await candidatesFor({config,state});
+      result=action === 'plan' ? createCleanupPlan({state,config,result:discovered,reference:id}) : verifyCleanupPlan({state,config,result:discovered,id,record:action === 'verify'});
+    }
+    printJson(result);
+  },
+  inventory: async () => {
+    if(args.some(a=>a !== '--json')) throw new Error('usage: diskwatch inventory [--json]');
+    console.log(JSON.stringify(await inventoryFor({config:loadConfig(),state:statePath()}),null,2));
+  },
   candidates: async () => {
     if (args.some(a => a !== '--json')) throw new Error('usage: diskwatch candidates [--json]');
     const result = await candidatesFor({config:loadConfig(),state:statePath()});
     if (hasFlag('--json')) printJson(result);
     else {
-      console.log(`${result.candidates.length} investigation leads; cleanup approval required. Partial coverage: ${result.partial}`);
-      for (const c of result.candidates) console.log(`${JSON.stringify(c.path)} | ${(c.bytes/1048576).toFixed(1)} MB | ${c.age_days} days | ${c.kind}`);
-      console.log('Next: diskwatch agent');
+      console.log(`${result.candidates.length} investigation leads; ${result.suppressed?.length || 0} kept/snoozed. Cleanup approval required. Partial coverage: ${result.partial}`);
+      for (const c of result.candidates) console.log(`${c.id.slice(0,12)} | ${JSON.stringify(c.path)} | ${(c.bytes/1048576).toFixed(1)} MB | ${c.age_days} days | ${c.kind}${c.evidence.traversal_complete ? '' : ' (incomplete estimate)'}`);
+      console.log('Next: diskwatch agent, diskwatch decide <id> keep, or diskwatch cleanup plan <id>');
     }
   },
   agent: async () => {
@@ -421,7 +457,9 @@ async function main() {
         `  migrate | scan | ingest | status --swiftbar | report --json\n` +
         `  why <path> [--json] | doctor [--json] | serve [--port 7381]\n` +
         `  canary | config [--dump] | setup [--defaults]\n` +
-        `  candidates [--json] | agent [--json]\n`,
+        `  candidates [--json] | inventory [--json] | agent [--json] | decisions [--json]\n` +
+        `  decide <candidate-id> keep|snooze|clear [--days 30] [--json]\n` +
+        `  cleanup plan <candidate-id> | check <plan-id> | verify <plan-id> | history\n`,
     );
     process.exitCode = cmd ? 0 : 2;
     return;

@@ -11,6 +11,7 @@ See what's taking up space on your Mac, what grew today, and how it changes over
 - SwiftBar menu line for free space
 - Guided terminal setup with explicit scope and automation choices
 - Bounded stale-file discovery and a private, staged workspace for your own AI agent
+- Saved keep/snooze decisions, read-only worktree inventory, and cleanup verification history
 
 ## Requirements
 
@@ -39,6 +40,14 @@ exclude from investigation, how old and large a candidate should be, the free
 space warning level, and whether to enable local notifications. Review the
 summary before saving. It then asks whether to install the background jobs.
 Declining leaves your preferences saved for a manual trial. Ctrl-C cancels.
+
+The interactive **Agentic coder** profile watches developer projects and caches,
+and adds size monitoring for agent history/worktrees, native developer and
+container stores, package stores, model weights and Trash. Those protected
+stores are monitored for growth, without transcript reads or cleanup permission.
+Downloads are watched but excluded from this profile's investigation roots.
+The simpler profiles and keeping your existing scope remain available.
+`setup --defaults` keeps the narrow read-only defaults on a new install.
 
 Choose how automatic you want it:
 
@@ -149,29 +158,73 @@ Reports exit 3 when the latest scan is stale.
 
 ```bash
 ~/.local/bin/diskwatch candidates --json
+~/.local/bin/diskwatch inventory --json
 ~/.local/bin/diskwatch agent
 ```
 
-The second command prints a prompt and creates a private workspace with a small
+The `agent` command prints a prompt and creates a private workspace with a small
 agent map and three stages: observe, investigate, decide. Claude Code, Codex or
 another filesystem-capable agent can follow it. It contains a current report,
-your scope, candidate evidence and a cleanup-plan template. Each run is preserved
+your scope, candidate evidence, worktree inventory, saved decisions, recent
+outcomes and a cleanup-plan template. Each run is preserved
 under `~/.local/state/diskwatch/agent/runs/`; `agent/latest.json` identifies the
 latest completed run. Nothing is uploaded by these commands. A cloud agent can
 send the evidence it reads to its provider, so review that boundary first.
 
-Discovery reads metadata within the approved roots. It ranks old, large files
-and cache/build folders using the newest descendant modification time, avoids
-symlinks and filesystem boundaries, and reports incomplete coverage. Default
-limits are 20,000 entries, eight levels, five seconds between metadata calls,
-and 100 results. A blocked filesystem call can take longer. Old timestamps do
-not establish non-use; partial directories are never called stale candidates.
+Discovery reads metadata within the approved roots. It checks project source
+and Git activity before ranking old dependency/cache/build artifacts, including
+Rust, Python, Gradle and Turbo outputs. It gives each root an entry budget and
+shares the overall time fairly, inspecting projects before expensive generated
+trees. Defaults are 200,000 entries per root, 16 levels, up to five seconds per
+root and 30 seconds overall between metadata calls. It retains the largest 100
+leads observed. A blocked filesystem call can take longer.
+
+Symlink targets and filesystem boundaries are never traversed. Links inside a
+generated tree contribute only their own metadata. Incomplete items can appear
+as explicitly marked lower-bound estimates: unvisited contents and activity
+remain unknown, and those items cannot become cleanup plans. Old timestamps
+still do not establish non-use. `inventory` reads scoped Git worktree metadata;
+locked/prunable flags do not establish that a worktree is safe to remove.
 
 Agents check ownership, active use, recoverability and exclusions, then show
 you exact items to approve. Unknown items stay blocked. DiskWatch itself has no
 deletion executor. Prefer reversible Move to Trash after approval, and remember
 that moving something to Trash normally does not free disk space until you
 choose to empty it. See [the agent workflow](docs/AGENT-WORKFLOW.md).
+
+## Remember decisions and verify cleanup
+
+Use the IDs printed by `candidates`; use the saved ID from `decisions` to clear
+a preference. Replace the uppercase placeholders below with those IDs.
+
+```bash
+diskwatch decide CANDIDATE_ID keep
+diskwatch decide CANDIDATE_ID snooze --days 14
+diskwatch decisions --json
+diskwatch decide DECISION_ID clear
+```
+
+Keep hides an unchanged proposal across runs. Snooze hides it until its deadline
+(30 days by default). A changed metadata fingerprint resurfaces either item for
+review. Clear removes the saved rule. These decisions never approve cleanup.
+
+After investigating one complete candidate:
+
+```bash
+diskwatch cleanup plan CANDIDATE_ID
+diskwatch cleanup check PLAN_ID
+# Obtain exact owner approval, then use the agreed external tool or Finder.
+diskwatch cleanup verify PLAN_ID
+diskwatch cleanup history --json
+```
+
+The plan saves an immutable single-item snapshot and a free-space baseline in
+the private `cleanup.db`. It is not approval. `check` observes current identity,
+metadata and scope without recording an outcome; resolve any change or
+uncertainty before acting. DiskWatch never performs the action. `verify` appends
+an observation to history. A missing original path proves neither Trash
+placement nor reclaimed space. The before/after volume delta is measured but
+not attributed to that action; it may be zero or negative.
 
 ## Contribute
 

@@ -7,6 +7,7 @@ import { THRESHOLDS, configPath } from './config.js';
 export const MODES = ['monitor', 'suggest', 'agent'];
 const BASIC = ['~/Downloads', '~/Library/Caches', '~/.npm'];
 const DEVELOPER = [...BASIC, '~/Developer', '~/.cache'];
+const AGENT_MONITORING = ['~/.claude/projects','~/.codex/sessions','~/.codex/worktrees','~/.grok/sessions','~/Library/Developer','~/Library/Containers','~/Library/Application Support/Claude/vm_bundles','~/.local/share/pnpm/store','~/Library/pnpm','~/.ollama','~/.Trash'];
 
 export function cleanupPolicy(value = {}) {
   const policy = {mode:'suggest',roots:[],exclude:[],min_age_days:30,min_size_mb:100,require_approval:true,...value};
@@ -55,13 +56,14 @@ export async function configure({existing = null,home = os.homedir(),state = pat
     'Agents get evidence and a review workflow. Every cleanup needs your approval.\n' +
     'No model runs or paid services are started by setup. Ctrl-C cancels.\n');
   const scope = await choose(ask,
-    `What should it watch and investigate?\n  1. Set scope to Downloads and caches\n  2. Set scope to those plus developer projects\n  3. Keep current watchlist and investigation scope\nScope [${existing ? '3' : '1'}]: `, ['1','2','3'], existing ? '3' : '1');
-  if (scope !== '3') cfg.watchlist = (scope === '2' ? DEVELOPER : BASIC).map(p => ({path:p,mode:'expand'}));
+    `What should it watch and investigate?\n  1. Downloads and caches\n  2. Those plus developer projects\n  3. Keep current watchlist and investigation scope\n  4. Agentic coder (recommended): projects/caches, plus SIZE MONITORING of agent history, worktrees, native developer/container stores and models. No transcript reads or cleanup permission.\nScope [${existing ? '3' : '4'}]: `, ['1','2','3','4'], existing ? '3' : '4');
+  if (scope !== '3') cfg.watchlist = (scope === '1' ? BASIC : DEVELOPER).map(p => ({path:p,mode:'expand'}));
+  if (scope === '4') cfg.watchlist.push(...AGENT_MONITORING.map(p=>({path:p,mode:'leaf',protected:1})));
   const modeDefault = String(MODES.indexOf(cfg.cleanup.mode)+1);
   const mode = await choose(ask,
     `\nHow automatic?\n  1. Monitor only. No scheduled stale-file search.\n  2. Suggest when I ask (recommended).\n  3. Discover daily. Prepare fresh evidence for my agent automatically.\nAll modes require approval before cleanup; mode 3 does not launch an AI.\nChoice [${modeDefault}]: `, ['1','2','3'], modeDefault);
   cfg.cleanup.mode = MODES[Number(mode)-1];
-  if (scope !== '3') cfg.cleanup.roots = cfg.watchlist.map(x => x.path).filter(p => p !== '~/.Trash');
+  if (scope !== '3') cfg.cleanup.roots = (scope === '4' ? DEVELOPER.filter(p=>p !== '~/Downloads') : cfg.watchlist.map(x => x.path)).filter(p => p !== '~/.Trash');
   write('\nFolders excluded from investigation stay out of candidate results.\n' +
     'Documents, photos, credentials, app state and agent history remain protected.');
   for (;;) {

@@ -9,6 +9,9 @@ import { developerInventory } from '../../src/cleanup/inventory.js';
 function fixture(t) {
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'diskwatch-inventory-')));
   t.after(() => {
+    // Older macOS CI runners have no native Trash command. Only this test's
+    // freshly generated temporary fixture may use the portable fallback.
+    if(!fs.existsSync('/usr/bin/trash')) { fs.rmSync(home,{recursive:true,force:true}); return; }
     const result = spawnSync('/usr/bin/trash', [home], { encoding: 'utf8', timeout: 10000 });
     assert.equal(result.status, 0, 'task-owned fixture cleanup succeeded');
   });

@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
-import {VCS_METADATA} from './discover.js';
+import {isVcsMetadata} from './discover.js';
 
 const GIT = '/usr/bin/git';
 const TOTAL_MS = 10000;
@@ -11,7 +11,6 @@ const COMMAND_MS = 2000;
 const MAX_ENTRIES = 5000;
 const MAX_OUTPUT = 1024 * 1024;
 const PROTECTED = new Set(['.git', '.ssh', '.gnupg', '.aws', '.azure', '.config', '.local', '.codex', '.claude', '.claude-mem', '.grok', '.agents', '.hermes', '.openclaw', '.cursor', '.vscode', '.trash', 'documents', 'desktop', 'pictures', 'photos', 'music', 'movies', 'library']);
-for(const name of VCS_METADATA) PROTECTED.add(name);
 const GENERATED = new Set(['node_modules', 'target', '.venv', 'venv', '__pycache__', '.gradle', '.turbo', '.yarn', '.next', 'dist', 'build', '.cache', '.npm']);
 const fold = value => value.normalize('NFC').toLowerCase();
 const within = (target, parent) => fold(target) === fold(parent) || fold(target).startsWith(fold(parent) + path.sep);
@@ -78,7 +77,7 @@ export async function developerInventory({ roots, exclude = [], home = os.homedi
     if (excluded.some(p => within(target, p))) return 'excluded';
     if (target === path.parse(target).root || ['/System', '/Library', '/usr', '/bin', '/sbin', '/etc', '/dev', '/proc', '/private/etc', '/private/var/db', '/private/var/root', '/var/db', '/var/root'].some(p => within(target, p))) return 'system_path';
     const components = within(target, homePath) ? path.relative(homePath, target).split(path.sep) : target.split(path.sep);
-    return components.some(p => PROTECTED.has(fold(p))) ? 'protected_path' : null;
+    return components.some(p => PROTECTED.has(fold(p)) || isVcsMetadata(p)) ? 'protected_path' : null;
   };
   const budget = target => {
     if (performance.now() - started >= TOTAL_MS) { skip(target, 'time_limit'); return false; }

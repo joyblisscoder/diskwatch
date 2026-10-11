@@ -52,7 +52,8 @@ test('version-control history is protected under approved roots and as an explic
   const f=fixture(t);
   const names=['.hg','.svn','.bzr','_darcs','CVS','RCS','.fossil-settings'];
   for(const name of names) f.write(`repo/${name}/history.bin`,400);
-  f.write('repo/.fslckout',400); f.age();
+  for(const name of ['.fslckout','_FOSSIL_','project.fossil','project.fossil-wal','_FOSSIL_-journal','.fslckout-shm']) f.write(`repo/${name}`,400);
+  f.age();
   assert.equal((await discoverCandidates(f.options)).candidates.length,0);
   for(const name of names) {
     const result=await discoverCandidates({...f.options,roots:[path.join(f.home,'repo',name)]});

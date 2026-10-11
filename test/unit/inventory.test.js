@@ -6,15 +6,17 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { developerInventory } from '../../src/cleanup/inventory.js';
 
+function removeFixture(target) {
+  // Only task-created temporary fixtures use this portable fallback on older
+  // macOS CI runners, which do not provide the native Trash command.
+  if(!fs.existsSync('/usr/bin/trash')) { fs.rmSync(target,{recursive:true,force:true}); return; }
+  const result=spawnSync('/usr/bin/trash',[target],{encoding:'utf8',timeout:10000});
+  assert.equal(result.status,0,'task-owned fixture cleanup succeeded');
+}
+
 function fixture(t) {
   const home = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'diskwatch-inventory-')));
-  t.after(() => {
-    // Older macOS CI runners have no native Trash command. Only this test's
-    // freshly generated temporary fixture may use the portable fallback.
-    if(!fs.existsSync('/usr/bin/trash')) { fs.rmSync(home,{recursive:true,force:true}); return; }
-    const result = spawnSync('/usr/bin/trash', [home], { encoding: 'utf8', timeout: 10000 });
-    assert.equal(result.status, 0, 'task-owned fixture cleanup succeeded');
-  });
+  t.after(() => removeFixture(home));
   const root = path.join(home, 'Developer');
   fs.mkdirSync(root);
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
@@ -36,7 +38,7 @@ function fixture(t) {
 
 test('inventory does not enter other version-control history directories',async t=>{
   const f=fixture(t);
-  for(const name of ['.hg','.svn','.bzr','_darcs','CVS','RCS','.fossil-settings']) f.repo(`${name}/history`);
+  for(const name of ['.hg','.svn','.bzr','_darcs','CVS','RCS','.fossil-settings','_FOSSIL_','project.fossil']) f.repo(`${name}/history`);
   const result=await developerInventory(f.options);
   assert.equal(result.projects.length,0);
   assert.equal(result.worktrees.length,0);
@@ -79,7 +81,7 @@ test('missing registered worktrees retain prunable evidence without recommending
   const repo = f.repo('app');
   const linked = path.join(f.root, 'missing');
   f.git(repo, 'worktree', 'add', '-b', 'missing', linked);
-  assert.equal(spawnSync('/usr/bin/trash', [linked]).status, 0);
+  removeFixture(linked);
   const result = await developerInventory(f.options);
   const item = result.worktrees.find(w => w.path === linked);
   assert.equal(item.exists, false);

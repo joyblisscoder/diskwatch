@@ -22,8 +22,10 @@ function fixture(t) {
   const env = Object.fromEntries(Object.entries(process.env).filter(([name]) => !name.startsWith('GIT_')));
   Object.assign(env, { GIT_CONFIG_NOSYSTEM: '1', GIT_CONFIG_GLOBAL: '/dev/null', GIT_TERMINAL_PROMPT: '0' });
   const git = (cwd, ...args) => {
-    const r = spawnSync('/usr/bin/git', ['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', ...args], { cwd, env, encoding: 'utf8', timeout: 2000 });
-    assert.equal(r.status, 0, 'fixture Git command succeeded');
+    // Fixture initialization includes cold Git startup on shared CI runners.
+    // This setup allowance does not change inventory's 2-second runtime cap.
+    const r = spawnSync('/usr/bin/git', ['-c', 'core.hooksPath=/dev/null', '-c', 'user.name=Fixture', '-c', 'user.email=fixture@example.invalid', ...args], { cwd, env, encoding: 'utf8', timeout: 10000 });
+    assert.equal(r.status, 0, `fixture Git command succeeded (${r.error?.code || 'exited'})`);
     return r.stdout;
   };
   const repo = (name) => {

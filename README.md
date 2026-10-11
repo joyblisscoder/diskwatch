@@ -9,6 +9,8 @@ See what's taking up space on your Mac, what grew today, and how it changes over
 - CLI: `report`, `why`, `status`, `doctor`, `scan`, `ingest`, `serve`, `canary`
 - Loopback dashboard at http://127.0.0.1:7381
 - SwiftBar menu line for free space
+- Guided terminal setup with explicit scope and automation choices
+- Bounded stale-file discovery and a private, staged workspace for your own AI agent
 
 ## Requirements
 
@@ -23,9 +25,36 @@ and unzip it. If Node.js isn't installed, get it from [nodejs.org](https://nodej
 
 ```bash
 # Run from the source folder after downloading and unzipping the release.
-node scripts/install.js --start
-open http://127.0.0.1:7381
+node scripts/setup.js
 ```
+
+Or, with Git and Node installed, paste this into Terminal:
+
+```bash
+git clone https://github.com/joyblisscoder/diskwatch.git && cd diskwatch && node scripts/setup.js
+```
+
+Setup explains what DiskWatch reads and asks which folders to watch, what to
+exclude from investigation, how old and large a candidate should be, the free
+space warning level, and whether to enable local notifications. Review the
+summary before saving. It then asks whether to install the background jobs.
+Declining leaves your preferences saved for a manual trial. Ctrl-C cancels.
+
+Choose how automatic you want it:
+
+| Mode | What happens |
+| --- | --- |
+| Monitor only | Track space and growth. No scheduled stale-file search. |
+| Suggestions on demand (default) | Run `diskwatch candidates` or `diskwatch agent` when you want help. |
+| Daily discovery | The collector prepares fresh candidate evidence once a day for your agent. |
+
+Every mode requires your approval of exact items before cleanup. Daily discovery
+does not launch an AI or delete anything. Re-run `~/.local/bin/diskwatch setup`
+to change preferences. No model credentials or paid services are required.
+
+For an unattended read-only setup, run `node bin/diskwatch setup --defaults`,
+then `node scripts/install.js --start` if you want background jobs. Interactive
+setup refuses piped input rather than guessing your answers.
 
 The installer creates `~/.local/bin/diskwatch` and two LaunchAgents, which run
 the dashboard after login and scan every 15 minutes. The first scan starts in
@@ -115,6 +144,34 @@ be stopped separately.
 
 `doctor` exits 0 for healthy, 1 for warnings, and 2 for failures.
 Reports exit 3 when the latest scan is stale.
+
+## Work with your agent
+
+```bash
+~/.local/bin/diskwatch candidates --json
+~/.local/bin/diskwatch agent
+```
+
+The second command prints a prompt and creates a private workspace with a small
+agent map and three stages: observe, investigate, decide. Claude Code, Codex or
+another filesystem-capable agent can follow it. It contains a current report,
+your scope, candidate evidence and a cleanup-plan template. Each run is preserved
+under `~/.local/state/diskwatch/agent/runs/`; `agent/latest.json` identifies the
+latest completed run. Nothing is uploaded by these commands. A cloud agent can
+send the evidence it reads to its provider, so review that boundary first.
+
+Discovery reads metadata within the approved roots. It ranks old, large files
+and cache/build folders using the newest descendant modification time, avoids
+symlinks and filesystem boundaries, and reports incomplete coverage. Default
+limits are 20,000 entries, eight levels, five seconds between metadata calls,
+and 100 results. A blocked filesystem call can take longer. Old timestamps do
+not establish non-use; partial directories are never called stale candidates.
+
+Agents check ownership, active use, recoverability and exclusions, then show
+you exact items to approve. Unknown items stay blocked. DiskWatch itself has no
+deletion executor. Prefer reversible Move to Trash after approval, and remember
+that moving something to Trash normally does not free disk space until you
+choose to empty it. See [the agent workflow](docs/AGENT-WORKFLOW.md).
 
 ## Contribute
 

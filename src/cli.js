@@ -24,6 +24,8 @@ import { classify, kpIdForPath, expandHome, toTilde } from './learn/classify.js'
 import { collapseHome } from './util/fmt.js';
 import { nowSec } from './util/time.js';
 import { append } from './util/log.js';
+import { runOnboarding } from './onboarding.js';
+import { candidatesFor, refreshAgent } from './agent/workspace.js';
 
 const [, , cmd, ...args] = process.argv;
 
@@ -65,6 +67,10 @@ async function cmdScan() {
   const tier = flagValue('--tier', 'hourly');
   const once = hasFlag('--once') || true;
   const result = runCollector({ tier, once });
+  if (result?.ok && getConfig().cleanup?.mode === 'agent') {
+    try { result.discovery = await agentSnapshot(true); }
+    catch (err) { result.discovery = {ok:false,error:err.message}; }
+  }
   printJson(result);
   process.exitCode = result && result.ok === false && !result.skipped ? 1 : 0;
 }
@@ -365,7 +371,36 @@ async function cmdConfig() {
   process.exitCode = 0;
 }
 
+async function agentSnapshot(scheduled = false) {
+  const config = loadConfig();
+  migrate();
+  const db = open();
+  let report;
+  try { report = buildReport(db); } finally { close(db); }
+  return refreshAgent({config,state:statePath(),report,scheduled});
+}
+
 const COMMANDS = {
+  candidates: async () => {
+    if (args.some(a => a !== '--json')) throw new Error('usage: diskwatch candidates [--json]');
+    const result = await candidatesFor({config:loadConfig(),state:statePath()});
+    if (hasFlag('--json')) printJson(result);
+    else {
+      console.log(`${result.candidates.length} investigation leads; cleanup approval required. Partial coverage: ${result.partial}`);
+      for (const c of result.candidates) console.log(`${JSON.stringify(c.path)} | ${(c.bytes/1048576).toFixed(1)} MB | ${c.age_days} days | ${c.kind}`);
+      console.log('Next: diskwatch agent');
+    }
+  },
+  agent: async () => {
+    if (args.some(a => a !== '--json')) throw new Error('usage: diskwatch agent [--json]');
+    const result = await agentSnapshot();
+    if (hasFlag('--json')) printJson(result);
+    else console.log(`Agent workspace: ${JSON.stringify(result.workspace)}\n${result.candidate_count} leads. Partial coverage: ${result.partial}.\n\nPaste this into your agent:\nRead CONTEXT.md in ${JSON.stringify(result.workspace)}. Follow the staged workflow. Explain privacy before reading reports. Investigate within my saved scope and show a cleanup plan. Wait for my approval before moving anything.\n\nThis command prepared local evidence; it did not launch an AI or delete files.`);
+  },
+  setup: async () => {
+    if (args.some(a => a !== '--defaults')) throw new Error('usage: diskwatch setup [--defaults]');
+    await runOnboarding({useDefaults:hasFlag('--defaults')});
+  },
   migrate: cmdMigrate,
   scan: cmdScan,
   ingest: cmdIngest,
@@ -385,7 +420,8 @@ async function main() {
       `diskwatch <command>\n` +
         `  migrate | scan | ingest | status --swiftbar | report --json\n` +
         `  why <path> [--json] | doctor [--json] | serve [--port 7381]\n` +
-        `  canary | config [--dump]\n`,
+        `  canary | config [--dump] | setup [--defaults]\n` +
+        `  candidates [--json] | agent [--json]\n`,
     );
     process.exitCode = cmd ? 0 : 2;
     return;

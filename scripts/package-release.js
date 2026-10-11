@@ -23,6 +23,10 @@ export const RELEASE_FILES = [
   'test/unit/fmt.test.js','test/unit/ingest.test.js','test/unit/notify.test.js',
   'test/unit/report.test.js','test/unit/rollup.test.js','test/unit/swiftbar.test.js',
   'test/unit/portability.test.js','test/unit/release.test.js',
+  'scripts/setup.js','src/onboarding.js','src/agent/workspace.js','src/cleanup/discover.js',
+  'test/unit/onboarding.test.js','test/unit/agent-workflow.test.js','test/unit/discover.test.js',
+  'agent/CONTEXT.md','agent/01_observe/CONTEXT.md','agent/02_investigate/CONTEXT.md',
+  'agent/03_decide/CONTEXT.md','agent/plan-template.md','docs/AGENT-WORKFLOW.md',
 ];
 
 export function exportSource({source=root,destination} = {}) {
@@ -45,6 +49,9 @@ export function exportSource({source=root,destination} = {}) {
   fs.copyFileSync(path.join(destination,'docs/PUBLIC-CONTEXT.md'),path.join(destination,'CONTEXT.md'));
   fs.symlinkSync('CONTEXT.md',path.join(destination,'AGENTS.md'));
   fs.symlinkSync('CONTEXT.md',path.join(destination,'CLAUDE.md'));
+  for (const dir of ['agent','agent/01_observe','agent/02_investigate','agent/03_decide']) {
+    for (const alias of ['AGENTS.md','CLAUDE.md']) fs.symlinkSync('CONTEXT.md',path.join(destination,dir,alias));
+  }
   return destination;
 }
 

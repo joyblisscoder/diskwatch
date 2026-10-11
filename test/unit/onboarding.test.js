@@ -88,3 +88,15 @@ test('keeping the watchlist preserves a narrower discovery scope and exclusions'
   assert.equal(config.cleanup.mode,'agent');
   assert.equal(config.cleanup.min_age_days,90);
 });
+
+test('agentic-coder profile explicitly monitors agent storage without granting it cleanup scope',async()=>{
+  const {configure}=await import('../../src/onboarding.js');
+  const answers=['4','3','','30','100','40','n','y'];
+  const cfg=await configure({ask:async()=>{if(!answers.length) throw new Error('Wizard did not accept the agentic-coder profile'); return answers.shift();},write:()=>{}});
+  assert.ok(cfg.watchlist.some(x=>x.path === '~/.codex/sessions'));
+  assert.ok(cfg.watchlist.some(x=>x.path === '~/.claude/projects'));
+  assert.ok(cfg.watchlist.some(x=>x.path === '~/Library/Developer'));
+  assert.ok(cfg.cleanup.roots.includes('~/Developer'));
+  assert.ok(!cfg.cleanup.roots.includes('~/.codex/sessions'));
+  assert.ok(!cfg.cleanup.roots.includes('~/Downloads'));
+});

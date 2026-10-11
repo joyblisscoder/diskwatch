@@ -5,6 +5,15 @@ import { createHash, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { cleanupPolicy } from '../onboarding.js';
 import { discoverCandidates } from '../cleanup/discover.js';
+import {applyDecisions,decisionList,listOutcomes} from '../cleanup/memory.js';
+import {candidateId} from '../cleanup/workflow.js';
+import {developerInventory} from '../cleanup/inventory.js';
+
+export async function inventoryFor({config,state,home=os.homedir()}) {
+  const p=policyFor(config);
+  if (!p.roots.length) return {projects:[],worktrees:[],coverage:{complete:true,roots:[]},errors:[]};
+  return developerInventory({roots:p.roots.map(x=>expand(x,home)),exclude:[state,...p.exclude.map(x=>expand(x,home))],home});
+}
 
 const templates = fileURLToPath(new URL('../../agent/',import.meta.url));
 const expand = (p,home) => p.startsWith('~/') ? path.join(home,p.slice(2)) : path.resolve(p);
@@ -16,7 +25,9 @@ export function policyFor(config) {
 export async function candidatesFor({config,state,home=os.homedir()}) {
   const p=policyFor(config);
   if (!p.roots.length) return {schema_version:1,generated_at:new Date().toISOString(),candidates:[],partial:false,errors:[],coverage:{roots:[],complete:true,entries_scanned:0},note:'No investigation roots approved. Run diskwatch setup.'};
-  return discoverCandidates({roots:p.roots.map(x=>expand(x,home)),exclude:[state,...p.exclude.map(x=>expand(x,home))],minAgeDays:p.min_age_days,minBytes:p.min_size_mb*1024*1024,home});
+  const result=await discoverCandidates({roots:p.roots.map(x=>expand(x,home)),exclude:[state,...p.exclude.map(x=>expand(x,home))],minAgeDays:p.min_age_days,minBytes:p.min_size_mb*1024*1024,home});
+  result.candidates=result.candidates.map(item=>({...item,id:candidateId(item)}));
+  return applyDecisions({state,result});
 }
 
 function directory(dir) {
@@ -60,8 +71,11 @@ export async function refreshAgent({config,state,report={stale:true,note:'Run di
   json(path.join(workspace,'01_observe/output/report.json'),report);
   json(path.join(workspace,'01_observe/output/policy.json'),{...policy,generated_at:new Date().toISOString(),state_directory:state});
   json(path.join(workspace,'02_investigate/output/candidates.json'),candidates);
+  json(path.join(workspace,'02_investigate/output/inventory.json'),await inventoryFor({config,state,home}));
+  json(path.join(workspace,'02_investigate/output/decisions.json'),decisionList({state}));
+  json(path.join(workspace,'03_decide/output/outcomes.json'),listOutcomes({state,limit:10}));
   write(path.join(workspace,'03_decide/output/plan.md'),fs.readFileSync(path.join(templates,'plan-template.md'),'utf8'));
-  const result={schema_version:1,generated_at:new Date().toISOString(),workspace,policy_fingerprint:fingerprint,candidate_count:candidates.candidates.length,partial:candidates.partial,requires_approval:true};
+  const result={schema_version:1,generated_at:new Date().toISOString(),workspace,policy_fingerprint:fingerprint,candidate_count:candidates.candidates.length,suppressed_count:candidates.suppressed?.length || 0,partial:candidates.partial,requires_approval:true};
   const pending=path.join(root,`latest-${randomUUID()}.tmp`);
   json(pending,result); fs.renameSync(pending,latest);
   return result;

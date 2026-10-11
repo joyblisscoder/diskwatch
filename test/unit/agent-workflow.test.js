@@ -35,6 +35,10 @@ test('agent handoff creates private inspectable evidence without changing monito
   const rerun=run(['agent','--json'],f); assert.equal(rerun.status,0,rerun.stderr);
   assert.notEqual(JSON.parse(rerun.stdout).workspace,data.workspace);
   assert.ok(fs.existsSync(path.join(data.workspace,'03_decide/output/plan.md')));
+  assert.ok(fs.existsSync(path.join(data.workspace,'02_investigate/output/inventory.json')));
+  const inventory=run(['inventory','--json'],f);
+  assert.equal(inventory.status,0,inventory.stderr);
+  assert.deepEqual(JSON.parse(inventory.stdout).worktrees,[]);
 });
 
 test('background discovery respects mode and daily cooldown, while explicit refresh works',async()=>{
@@ -69,6 +73,10 @@ test('collector command automatically discovers once and honors the saved cooldo
   const output=JSON.parse(first.stdout);
   assert.equal(output.ok,true);
   assert.equal(output.discovery.candidate_count,1);
+  const report=run(['report','--json'],f);
+  assert.equal(JSON.parse(report.stdout).data.cleanup_summary.candidate_count,1);
+  const menu=run(['status','--swiftbar'],f);
+  assert.match(menu.stdout,/1 cleanup lead/);
   const second=run(['scan','--once'],f); assert.equal(second.status,0,second.stderr);
   assert.equal(JSON.parse(second.stdout).discovery.reason,'recent');
 });

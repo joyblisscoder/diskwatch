@@ -89,6 +89,7 @@ export function verifyCleanupPlan({state,config,result,id,home=os.homedir(),reco
       if(!stat) status='path_absent';
       else if(stat.dev !== item.identity.device || stat.ino !== item.identity.inode) status='recreated';
       else {
+        if((result.suppressed || []).some(x=>canonical(x.path) === canonical(item.path))) throw new Error('This item is kept or snoozed. Owner-directed clearing or fresh investigation is required.');
         const current=[...(result.candidates || []),...(result.suppressed || [])].find(x=>canonical(x.path) === canonical(item.path));
         if(current?.evidence?.traversal_complete) status=current.fingerprint === item.fingerprint ? 'still_present_unchanged' : 'still_present_changed';
         else if(!result.partial) status='still_present_changed';

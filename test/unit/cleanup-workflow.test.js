@@ -56,3 +56,19 @@ test('plans refuse incomplete candidates and verification refuses changed policy
   fs.renameSync(f.root,path.join(f.home,'elsewhere')); fs.symlinkSync(path.join(f.home,'elsewhere'),f.root);
   assert.equal(verifyCleanupPlan({...f,id:plan.id}).status,'verification_incomplete');
 });
+
+test('a newer owner keep or snooze blocks an existing plan until explicitly cleared',async()=>{
+  const {createCleanupPlan,verifyCleanupPlan,candidateId}=await import('../../src/cleanup/workflow.js');
+  const {rememberDecision,applyDecisions}=await import('../../src/cleanup/memory.js');
+  const f=await fixture(); const item=f.result.candidates[0];
+  const plan=createCleanupPlan({...f,reference:candidateId(item)});
+  for(const decision of ['keep','snooze']) {
+    rememberDecision({state:f.state,candidate:item,decision});
+    const blocked=verifyCleanupPlan({...f,result:applyDecisions({state:f.state,result:f.result}),id:plan.id,record:false});
+    assert.equal(blocked.status,'verification_incomplete');
+    assert.equal(blocked.verification.source_unchanged,false);
+    assert.match(blocked.verification.reason,/kept or snoozed/i);
+    rememberDecision({state:f.state,candidate:item,decision:'clear'});
+    assert.equal(verifyCleanupPlan({...f,result:applyDecisions({state:f.state,result:f.result}),id:plan.id,record:false}).status,'still_present_unchanged');
+  }
+});

@@ -28,6 +28,10 @@ test('agent handoff creates private inspectable evidence without changing monito
   assert.equal(fs.statSync(f.file).mtimeMs,before.mtimeMs);
   assert.equal(fs.statSync(path.join(data.workspace,'01_observe/output/report.json')).mode & 0o777,0o600);
   assert.equal(fs.readlinkSync(path.join(data.workspace,'AGENTS.md')),'CONTEXT.md');
+  const runtime=JSON.parse(fs.readFileSync(path.join(data.workspace,'runtime.json')));
+  const command=spawnSync(runtime.argv[0],[...runtime.argv.slice(1),'config','--json'],{cwd:data.workspace,encoding:'utf8',env:{...process.env,...runtime.env}});
+  assert.equal(command.status,0,command.stderr);
+  assert.equal(JSON.parse(command.stdout).state,f.state);
   const rerun=run(['agent','--json'],f); assert.equal(rerun.status,0,rerun.stderr);
   assert.notEqual(JSON.parse(rerun.stdout).workspace,data.workspace);
   assert.ok(fs.existsSync(path.join(data.workspace,'03_decide/output/plan.md')));
@@ -57,4 +61,14 @@ test('agent refuses injected workspace symlinks and invalid approval policy',()=
   fs.writeFileSync(path.join(f.state,'config.json'),JSON.stringify(cfg));
   const invalid=run(['candidates','--json'],f); assert.notEqual(invalid.status,0);
   assert.match(invalid.stderr,/approval/);
+});
+
+test('collector command automatically discovers once and honors the saved cooldown',()=>{
+  const f=fixture();
+  const first=run(['scan','--once'],f); assert.equal(first.status,0,first.stderr);
+  const output=JSON.parse(first.stdout);
+  assert.equal(output.ok,true);
+  assert.equal(output.discovery.candidate_count,1);
+  const second=run(['scan','--once'],f); assert.equal(second.status,0,second.stderr);
+  assert.equal(JSON.parse(second.stdout).discovery.reason,'recent');
 });

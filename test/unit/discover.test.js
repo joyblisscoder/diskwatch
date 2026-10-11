@@ -150,3 +150,30 @@ test('explicit npm cache root remains approval required', async t => {
   assert.equal(result.candidates[0].kind, 'cache');
   assert.equal(result.candidates[0].requires_approval, true);
 });
+
+test('case variants cannot bypass exclusions or duplicate overlapping approved roots', async t => {
+  const { discoverCandidates } = await import(modulePath);
+  const f = fixture(t);
+  f.file('Private/stale.bin');
+  const result = await discoverCandidates({ ...f.options, exclude: [path.join(f.root, 'private')] });
+  assert.deepEqual(result.candidates, []);
+  const deduped = await discoverCandidates({ ...f.options, roots: [f.root, f.root.toUpperCase()] });
+  assert.equal(deduped.coverage.roots.length, 1);
+  assert.equal(deduped.candidates.length, 1);
+});
+
+test('additional agent stores remain protected even when their files look stale', async t => {
+  const { discoverCandidates } = await import(modulePath);
+  const f = fixture(t);
+  f.file('.grok/history.bin');
+  f.file('.claude-mem/memory.bin');
+  assert.deepEqual((await discoverCandidates(f.options)).candidates, []);
+});
+
+test('Unicode normalization aliases cannot bypass an exclusion', async t => {
+  const { discoverCandidates } = await import(modulePath);
+  const f = fixture(t);
+  f.file('Privaté/stale.bin');
+  const result = await discoverCandidates({ ...f.options, exclude: [path.join(f.root, 'PrivaTE\u0301')] });
+  assert.deepEqual(result.candidates, []);
+});

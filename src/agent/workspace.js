@@ -47,12 +47,15 @@ export async function refreshAgent({config,state,report={stale:true,note:'Run di
   const runs=path.join(root,'runs'); directory(runs);
   const workspace=path.join(runs,new Date().toISOString().replace(/[:.]/g,'-')+'-'+randomUUID().slice(0,8));
   directory(workspace);
+  json(path.join(workspace,'runtime.json'),{argv:[process.execPath,fileURLToPath(new URL('../../bin/diskwatch',import.meta.url))],env:{DISKWATCH_STATE_DIR:state,HOME:home}});
   write(path.join(workspace,'CONTEXT.md'),fs.readFileSync(path.join(templates,'CONTEXT.md'),'utf8'));
   fs.symlinkSync('CONTEXT.md',path.join(workspace,'AGENTS.md'));
   fs.symlinkSync('CONTEXT.md',path.join(workspace,'CLAUDE.md'));
   for (const stage of ['01_observe','02_investigate','03_decide']) {
     directory(path.join(workspace,stage)); directory(path.join(workspace,stage,'output'));
     write(path.join(workspace,stage,'CONTEXT.md'),fs.readFileSync(path.join(templates,stage,'CONTEXT.md'),'utf8'));
+    fs.symlinkSync('CONTEXT.md',path.join(workspace,stage,'AGENTS.md'));
+    fs.symlinkSync('CONTEXT.md',path.join(workspace,stage,'CLAUDE.md'));
   }
   json(path.join(workspace,'01_observe/output/report.json'),report);
   json(path.join(workspace,'01_observe/output/policy.json'),{...policy,generated_at:new Date().toISOString(),state_directory:state});

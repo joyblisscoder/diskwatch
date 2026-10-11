@@ -55,28 +55,31 @@ export async function configure({existing = null,home = os.homedir(),state = pat
     'Agents get evidence and a review workflow. Every cleanup needs your approval.\n' +
     'No model runs or paid services are started by setup. Ctrl-C cancels.\n');
   const scope = await choose(ask,
-    'What should it watch?\n  1. Downloads and caches\n  2. Those plus developer projects\n  3. Keep current watchlist\nScope [1]: ', ['1','2','3'], '1');
+    `What should it watch and investigate?\n  1. Set scope to Downloads and caches\n  2. Set scope to those plus developer projects\n  3. Keep current watchlist and investigation scope\nScope [${existing ? '3' : '1'}]: `, ['1','2','3'], existing ? '3' : '1');
   if (scope !== '3') cfg.watchlist = (scope === '2' ? DEVELOPER : BASIC).map(p => ({path:p,mode:'expand'}));
+  const modeDefault = String(MODES.indexOf(cfg.cleanup.mode)+1);
   const mode = await choose(ask,
-    '\nHow automatic?\n  1. Monitor only. No scheduled stale-file search.\n  2. Suggest when I ask (recommended).\n  3. Discover daily. Prepare fresh evidence for my agent automatically.\nAll modes require approval before cleanup; mode 3 does not launch an AI.\nChoice [2]: ', ['1','2','3'], '2');
+    `\nHow automatic?\n  1. Monitor only. No scheduled stale-file search.\n  2. Suggest when I ask (recommended).\n  3. Discover daily. Prepare fresh evidence for my agent automatically.\nAll modes require approval before cleanup; mode 3 does not launch an AI.\nChoice [${modeDefault}]: `, ['1','2','3'], modeDefault);
   cfg.cleanup.mode = MODES[Number(mode)-1];
-  cfg.cleanup.roots = cfg.watchlist.map(x => x.path).filter(p => p !== '~/.Trash');
+  if (scope !== '3') cfg.cleanup.roots = cfg.watchlist.map(x => x.path).filter(p => p !== '~/.Trash');
   write('\nFolders excluded from investigation stay out of candidate results.\n' +
     'Documents, photos, credentials, app state and agent history remain protected.');
   for (;;) {
-    const answer = String(await ask('Additional exclusions, separated by semicolons (~/path), or Enter for none: ')).trim();
-    const exclude = answer ? answer.split(';').map(x=>x.trim()) : [];
+    write('Current exclusions: '+JSON.stringify(cfg.cleanup.exclude));
+    const answer = String(await ask('Add exclusions separated by semicolons (~/path). Enter keeps current; type CLEAR to remove all: ')).trim();
+    const exclude = answer === 'CLEAR' ? [] : answer ? [...new Set([...cfg.cleanup.exclude,...answer.split(';').map(x=>x.trim())])] : cfg.cleanup.exclude;
     try { cfg.cleanup = cleanupPolicy({...cfg.cleanup,exclude}); break; }
     catch (err) { write(err.message); }
   }
-  cfg.cleanup.min_age_days = await number(ask,'Look for items unchanged for how many days? [30]: ',30,1,3650);
-  cfg.cleanup.min_size_mb = await number(ask,'Smallest candidate size in MB? [100]: ',100,1,1048576);
-  const warn = await number(ask,'Warn below how many GB free? [40]: ',40,1,1048576);
+  cfg.cleanup.min_age_days = await number(ask,`Look for items unchanged for how many days? [${cfg.cleanup.min_age_days}]: `,cfg.cleanup.min_age_days,1,3650);
+  cfg.cleanup.min_size_mb = await number(ask,`Smallest candidate size in MB? [${cfg.cleanup.min_size_mb}]: `,cfg.cleanup.min_size_mb,1,1048576);
+  const warnDefault=cfg.thresholds?.free_warn_gb ?? 40;
+  const warn = await number(ask,`Warn below how many GB free? [${warnDefault}]: `,warnDefault,1,1048576);
   cfg.thresholds = {...THRESHOLDS,...cfg.thresholds,free_warn_gb:warn,free_critical_gb:Math.min(cfg.thresholds?.free_critical_gb ?? 20,warn)};
   cfg.notifications = {channel:(await choose(ask,'Enable local Mac notifications? [y/N]: ',['y','n','Y','N'],'n')).toLowerCase() === 'y' ? 'macos' : 'none'};
   cfg.onboarding = {version:1,completed_at:new Date().toISOString()};
   write('\nReview your scope:\n' + cfg.watchlist.map(x=>'  '+JSON.stringify(x.path)).join('\n') +
-    `\nAutomation: ${cfg.cleanup.mode}; cleanup approval: always\n` +
+    `\nInvestigation roots: ${JSON.stringify(cfg.cleanup.roots)}\nAutomation: ${cfg.cleanup.mode}; cleanup approval: always\n` +
     `Candidates: ${cfg.cleanup.min_age_days}+ days unchanged, ${cfg.cleanup.min_size_mb}+ MB\n` +
     `Excluded: ${JSON.stringify(cfg.cleanup.exclude)}\nNotifications: ${cfg.notifications.channel}\n` +
     `Local state: ${JSON.stringify(state)}\n` +

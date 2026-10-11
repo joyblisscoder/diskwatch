@@ -49,6 +49,9 @@ export function exportSource({source=root,destination} = {}) {
   fs.copyFileSync(path.join(destination,'docs/PUBLIC-CONTEXT.md'),path.join(destination,'CONTEXT.md'));
   fs.symlinkSync('CONTEXT.md',path.join(destination,'AGENTS.md'));
   fs.symlinkSync('CONTEXT.md',path.join(destination,'CLAUDE.md'));
+  for (const dir of ['agent','agent/01_observe','agent/02_investigate','agent/03_decide']) {
+    for (const alias of ['AGENTS.md','CLAUDE.md']) fs.symlinkSync('CONTEXT.md',path.join(destination,dir,alias));
+  }
   return destination;
 }
 

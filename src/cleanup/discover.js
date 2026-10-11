@@ -5,10 +5,17 @@ import { performance } from 'node:perf_hooks';
 
 const DAY = 86400000;
 const GENERATED = new Map([['node_modules', 'dependencies'], ['.next', 'build_output'], ['build', 'build_output'], ['dist', 'build_output'], ['.cache', 'cache'], ['.npm', 'cache']]);
-const PROTECTED = new Set(['.git', '.ssh', '.gnupg', '.aws', '.azure', '.config', '.local', '.codex', '.claude', '.agents', '.hermes', '.openclaw', '.cursor', '.vscode', '.npmrc', '.netrc', '.pypirc', '.trash', 'documents', 'desktop', 'pictures', 'photos', 'music', 'movies', 'library']);
+const PROTECTED = new Set(['.git', '.ssh', '.gnupg', '.aws', '.azure', '.config', '.local', '.codex', '.claude', '.claude-mem', '.grok', '.agents', '.hermes', '.openclaw', '.cursor', '.vscode', '.npmrc', '.netrc', '.pypirc', '.trash', 'documents', 'desktop', 'pictures', 'photos', 'music', 'movies', 'library']);
 const SECRET = /^(?:\.env(?:\..*)?|credentials(?:\..*)?|secrets?(?:\..*)?|id_(?:rsa|ed25519|ecdsa)(?:\..*)?)$|\.(?:pem|key|p12|pfx|keychain(?:-db)?|photoslibrary|photolibrary)$/i;
 const SOURCE = /\.(?:[cm]?[jt]sx?|py|rb|go|rs|swift|c|cpp|h|java|sh|md|txt|pdf|docx?|xlsx?|pptx?|sqlite(?:3)?|db)$/i;
-const within = (target, parent) => target === parent || target.startsWith(parent + path.sep);
+const foldPath = value => value.normalize('NFC').toLowerCase();
+// Conservative across both case-sensitive and case-insensitive volumes: a
+// spelling difference must never expand scope or bypass an exclusion.
+const within = (target, parent) => {
+  const foldedTarget = foldPath(target);
+  const foldedParent = foldPath(parent);
+  return foldedTarget === foldedParent || foldedTarget.startsWith(foldedParent.endsWith(path.sep) ? foldedParent : foldedParent + path.sep);
+};
 
 // Metadata is evidence of age and size, never evidence of ownership or permission.
 export async function discoverCandidates({ roots, exclude = [], minAgeDays = 30, minBytes = 100 * 1024 * 1024, maxEntries = 20000, maxDepth = 8, maxMs = 5000, now = Date.now(), home = os.homedir() } = {}) {
@@ -39,11 +46,12 @@ export async function discoverCandidates({ roots, exclude = [], minAgeDays = 30,
   const protectedPath = target => {
     if (excluded.some(p => within(target, p))) return 'excluded';
     if (target === path.parse(target).root || ['/System', '/Library', '/usr', '/bin', '/sbin', '/etc', '/dev', '/proc'].some(p => within(target, p))) return 'system_path';
-    let components = (within(target, homePath) ? path.relative(homePath, target) : target).split(path.sep);
+    let components = target.split(path.sep);
+    if (within(target, homePath)) components = components.slice(homePath.split(path.sep).length);
     // Only this explicitly approved Library subtree is discoverable. Other
     // application state stays protected, including nested Library directories.
-    if (within(target.toLowerCase(), cachePath.toLowerCase())) components = components.slice(2);
-    if (components.some(p => PROTECTED.has(p.toLowerCase()) || SECRET.test(p))) return 'protected_path';
+    if (within(target, cachePath)) components = components.slice(2);
+    if (components.some(p => PROTECTED.has(foldPath(p)) || SECRET.test(p))) return 'protected_path';
     return null;
   };
   const noSymlinkAncestors = target => {
@@ -81,7 +89,7 @@ export async function discoverCandidates({ roots, exclude = [], minAgeDays = 30,
       }
       if (!stat.isDirectory()) { skip(target, 'special_file'); return failed(); }
       if (depth >= maxDepth) { skip(target, 'depth_limit'); return failed(); }
-      const kind = path.dirname(target).toLowerCase() === cachePath.toLowerCase() ? 'cache' : GENERATED.get(path.basename(target));
+      const kind = foldPath(path.dirname(target)) === foldPath(cachePath) ? 'cache' : GENERATED.get(path.basename(target));
       const directory = fs.opendirSync(target, { bufferSize: 32 });
       try {
         let entry;

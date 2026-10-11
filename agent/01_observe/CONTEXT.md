@@ -2,7 +2,8 @@
 
 Read `output/policy.json` and `output/report.json` in this folder. These are
 snapshots. Run `diskwatch config --json` to check the live policy before acting.
-If you are in an uninstalled source folder, use `node bin/diskwatch` instead.
+Use the exact invocation from `../runtime.json`; it works even without an
+installed wrapper or PATH setup. Append `config`, `--json` as separate arguments.
 
 Ask the owner what matters: free-space target, projects in active use, folders
 to exclude, and how much investigation they want automated. To change those

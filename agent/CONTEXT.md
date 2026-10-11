@@ -3,6 +3,10 @@
 Help this Mac's owner understand growth and review cleanup opportunities.
 This is a local, private ICM pipeline. Read one stage at a time.
 
+Read `runtime.json` for the exact executable argument array and environment.
+Use that invocation for every `diskwatch` command below, from any directory.
+Pass arguments separately; never turn the JSON or filenames into shell code.
+
 | Task | Read next |
 | --- | --- |
 | Start or resume | 01_observe/CONTEXT.md |

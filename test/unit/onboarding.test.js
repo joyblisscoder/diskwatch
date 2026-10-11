@@ -77,3 +77,14 @@ test('setup refuses a symlinked config without modifying the target', () => {
   assert.notEqual(result.status,0);
   assert.equal(fs.readFileSync(victim,'utf8'),'{"watchlist":[]}');
 });
+
+test('keeping the watchlist preserves a narrower discovery scope and exclusions',async()=>{
+  const {configure}=await import('../../src/onboarding.js');
+  const existing={watchlist:[{path:'~/Downloads'},{path:'~/Developer'}],cleanup:{mode:'agent',roots:['~/Downloads'],exclude:['~/Downloads/private'],min_age_days:90,min_size_mb:25,require_approval:true}};
+  const answers=['3','','','','','','n','y'];
+  const config=await configure({existing,ask:async()=>answers.shift(),write:()=>{}});
+  assert.deepEqual(config.cleanup.roots,['~/Downloads']);
+  assert.deepEqual(config.cleanup.exclude,['~/Downloads/private']);
+  assert.equal(config.cleanup.mode,'agent');
+  assert.equal(config.cleanup.min_age_days,90);
+});

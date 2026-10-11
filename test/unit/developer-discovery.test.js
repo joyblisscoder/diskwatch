@@ -48,6 +48,19 @@ test('normal dependency executable links are metadata, never traversed', async t
   assert.ok(candidate.blockers.includes('symlink_targets_not_inspected'));
 });
 
+test('version-control history is protected under approved roots and as an explicit root', async t => {
+  const f=fixture(t);
+  const names=['.hg','.svn','.bzr','_darcs','CVS','RCS','.fossil-settings'];
+  for(const name of names) f.write(`repo/${name}/history.bin`,400);
+  f.write('repo/.fslckout',400); f.age();
+  assert.equal((await discoverCandidates(f.options)).candidates.length,0);
+  for(const name of names) {
+    const result=await discoverCandidates({...f.options,roots:[path.join(f.home,'repo',name)]});
+    assert.equal(result.candidates.length,0);
+    assert.ok(result.coverage.skipped.some(x=>x.reason === 'protected_path'));
+  }
+});
+
 test('each explicit root gets an independent budget and incomplete bytes are labelled', async t => {
   const f = fixture(t);
   for (let i = 0; i < 20; i++) f.write(`a/node_modules/${i}`, 200);

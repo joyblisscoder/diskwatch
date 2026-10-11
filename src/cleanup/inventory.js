@@ -3,6 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { performance } from 'node:perf_hooks';
+import {VCS_METADATA} from './discover.js';
 
 const GIT = '/usr/bin/git';
 const TOTAL_MS = 10000;
@@ -10,6 +11,7 @@ const COMMAND_MS = 2000;
 const MAX_ENTRIES = 5000;
 const MAX_OUTPUT = 1024 * 1024;
 const PROTECTED = new Set(['.git', '.ssh', '.gnupg', '.aws', '.azure', '.config', '.local', '.codex', '.claude', '.claude-mem', '.grok', '.agents', '.hermes', '.openclaw', '.cursor', '.vscode', '.trash', 'documents', 'desktop', 'pictures', 'photos', 'music', 'movies', 'library']);
+for(const name of VCS_METADATA) PROTECTED.add(name);
 const GENERATED = new Set(['node_modules', 'target', '.venv', 'venv', '__pycache__', '.gradle', '.turbo', '.yarn', '.next', 'dist', 'build', '.cache', '.npm']);
 const fold = value => value.normalize('NFC').toLowerCase();
 const within = (target, parent) => fold(target) === fold(parent) || fold(target).startsWith(fold(parent) + path.sep);

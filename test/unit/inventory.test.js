@@ -31,6 +31,15 @@ function fixture(t) {
   return { home, root, git, repo, options: { roots: [root], home } };
 }
 
+test('inventory does not enter other version-control history directories',async t=>{
+  const f=fixture(t);
+  for(const name of ['.hg','.svn','.bzr','_darcs','CVS','RCS','.fossil-settings']) f.repo(`${name}/history`);
+  const result=await developerInventory(f.options);
+  assert.equal(result.projects.length,0);
+  assert.equal(result.worktrees.length,0);
+  assert.equal(result.coverage.git_commands,0);
+});
+
 test('native inventory discovers repositories and locked linked worktrees without removal authority', async t => {
   const f = fixture(t);
   const repo = f.repo('app');

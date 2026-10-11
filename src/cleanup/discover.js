@@ -8,6 +8,8 @@ const DAY = 86400000;
 const GENERATED = new Map([['node_modules', 'dependencies'], ['.next', 'build_output'], ['build', 'build_output'], ['dist', 'build_output'], ['target', 'build_output'], ['coverage', 'build_output'], ['.venv', 'dependencies'], ['__pycache__', 'cache'], ['.gradle', 'cache'], ['.turbo', 'cache'], ['.cache', 'cache'], ['.npm', 'cache']]);
 const PROJECT_MARKERS = new Set(['package.json', 'Cargo.toml', 'pyproject.toml', 'setup.py', 'go.mod', 'Gemfile', 'pom.xml', 'build.gradle', 'build.gradle.kts', 'Package.swift', 'CMakeLists.txt', '.git']);
 const PROTECTED = new Set(['.git', '.ssh', '.gnupg', '.aws', '.azure', '.config', '.local', '.codex', '.claude', '.claude-mem', '.grok', '.agents', '.hermes', '.openclaw', '.cursor', '.vscode', '.npmrc', '.netrc', '.pypirc', '.trash', 'documents', 'desktop', 'pictures', 'photos', 'music', 'movies', 'library']);
+export const VCS_METADATA = ['.hg','.svn','.bzr','_darcs','cvs','rcs','.fslckout','.fossil-settings'];
+for(const name of VCS_METADATA) PROTECTED.add(name);
 const SECRET = /^(?:\.env(?:\..*)?|credentials(?:\..*)?|secrets?(?:\..*)?|id_(?:rsa|ed25519|ecdsa)(?:\..*)?)$|\.(?:pem|key|p12|pfx|keychain(?:-db)?|photoslibrary|photolibrary)$/i;
 const SOURCE = /\.(?:[cm]?[jt]sx?|py|rb|go|rs|swift|c|cpp|h|java|sh|md|txt|pdf|docx?|xlsx?|pptx?|sqlite(?:3)?|db)$/i;
 const foldPath = value => value.normalize('NFC').toLowerCase();
